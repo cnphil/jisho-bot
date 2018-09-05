@@ -5,6 +5,7 @@ import urllib.request, json
 import urllib.parse
 import config
 
+version = '0.0.2'
 updater = Updater(token=config.token)
 
 dispatcher = updater.dispatcher
@@ -26,7 +27,6 @@ def extract_def(data):
         english_definitions = ', '.join(data['data'][0]['senses'][0]['english_definitions'])
     return word + '（' + reading + '）\n' + parts_of_speech + ': ' + english_definitions
 
-
 def query_jisho(query):
     query_url = "https://jisho.org/api/v1/search/words?keyword=" + urllib.parse.quote(query)
     print(query_url)
@@ -37,12 +37,12 @@ def query_jisho(query):
         else:
             return extract_def(data)
 def start(bot, update):
-    bot.send_message(chat_id=update.message.chat_id, text="こんにちは。私は辞書ボットです。")
+    bot.send_message(chat_id=update.message.chat_id, text="こんにちは。私は辞書ボットです。version=" + version)
 
 def search(bot, update, args):
-    if (update.effective_user == None) or (update.effective_user.username != 'philhu'):
-        bot.send_message(chat_id=update.message.chat_id, text="この機能は @philhu さんだけが利用できます。I'm only reserved to @philhu at the moment.")
-        return
+    #if (update.effective_user == None) or (update.effective_user.username != 'philhu'):
+    #    bot.send_message(chat_id=update.message.chat_id, text="この機能は @philhu さんだけが利用できます。I'm only reserved to @philhu at the moment.")
+    #    return
     bot.send_message(chat_id=update.message.chat_id, text=query_jisho(' '.join(args)))
 
 start_handler = CommandHandler('start', start)

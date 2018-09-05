@@ -1,2 +1,4 @@
 config.py
 jisho-venv
+__pycache__/
+
