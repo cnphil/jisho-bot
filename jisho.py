@@ -1,11 +1,12 @@
 from telegram.ext import Updater
 import logging
 from telegram.ext import CommandHandler
+from telegram.ext import MessageHandler, Filters
 import urllib.request, json
 import urllib.parse
 import config
 
-version = '0.0.2'
+version = '0.0.3'
 updater = Updater(token=config.token)
 
 dispatcher = updater.dispatcher
@@ -45,10 +46,21 @@ def search(bot, update, args):
     #    return
     bot.send_message(chat_id=update.message.chat_id, text=query_jisho(' '.join(args)))
 
+def unknown(bot, update):
+    # print(update.message.text)
+    keywords = ["日语", "日本語", "japanese"]
+    for keyword in keywords:
+        if keyword in update.message.text:
+            search(bot, update, [update.message.text.split(keyword)[1]])
+            return
+
 start_handler = CommandHandler('start', start)
 dispatcher.add_handler(start_handler)
 
 search_handler = CommandHandler('search', search, pass_args=True)
 dispatcher.add_handler(search_handler)
+
+unknown_handler = MessageHandler(Filters.text, unknown)
+dispatcher.add_handler(unknown_handler)
 
 updater.start_polling()
