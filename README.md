@@ -26,7 +26,7 @@ jisho-bot offers basic Japanese-English dictionary over Telegram bot ([@my_jisho
 - Lookup words.
 - Message `/record_stop` to stop recording, a TSV file with definitions of the words will be sent to you.
 
-[![Record_demo](record_demo.png)]
+![Record_demo](record_demo.png)
 
 #### Importing flashcards into Anki
 
@@ -37,7 +37,7 @@ The exported TSV has three fields:
 - `reading` is usually Hiragana, or Katakana for loanwords (借用語).
 
 An example of Anki flashcard:
-[![Anki_demo](anki_demo.png)]
+![Anki_demo](anki_demo.png)
 
 ## Credits
 

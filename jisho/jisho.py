@@ -12,7 +12,7 @@ from config import token
 from dictionary import query_jisho, render_word
 from anki import output_anki_tsv
 
-version = '0.1.0'
+version = '0.1.1'
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -87,9 +87,10 @@ def conv_record(bot, update):
 def conv_record_stop(bot, update):
     logger.info("User %s stopped recording", update.effective_user.username)
     definitions = chat_recordings[update.effective_user.username]
-    update.message.reply_text("Recording stopped. " + str(len(definitions)) + " items:\n" + ', '.join(list(map(lambda d: render_word(d), definitions))))
-    with output_anki_tsv(definitions) as temp_filename:
-        bot.send_document(chat_id=update.message.chat_id, document=open(temp_filename, 'rb'), filename="jisho_"+strftime("%Y%m%d_%H%M", gmtime())+".tsv")
+    update.message.reply_text("Recording stopped. " + str(len(definitions)) + " items.\n" + ', '.join(list(map(lambda d: render_word(d), definitions))))
+    if len(definitions) > 0:
+        with output_anki_tsv(definitions) as temp_filename:
+            bot.send_document(chat_id=update.message.chat_id, document=open(temp_filename, 'rb'), filename="jisho_"+strftime("%Y%m%d_%H%M", gmtime())+".tsv")
     return GENERAL
 
 def main():

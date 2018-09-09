@@ -10,7 +10,7 @@ def output_anki_tsv(definitions):
     """
     tempf = tempfile.NamedTemporaryFile(mode='w', delete=False)
     for definition in definitions:
-        line = f'{render_word(definition)}\t{render_reading(definition)}\t{render_definition(definition)}\n'
+        line = render_word(definition) + '\t' + render_reading(definition) + '\t' + render_definition(definition) + '\n'
         tempf.write(line)
     tempf.close()
     try:
