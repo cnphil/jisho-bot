@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import telegram
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
@@ -7,12 +8,13 @@ from telegram.ext import ConversationHandler
 from lru import LRU
 import logging
 from time import gmtime, strftime
+from functools import partial
 
 from config import token
 from dictionary import query_jisho, render_word
 from anki import output_anki_tsv
 
-version = '0.1.1'
+version = '0.1.2'
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(filename)s - %(lineno)d - %(levelname)s - %(message)s')
@@ -21,43 +23,16 @@ logger.setLevel(logging.INFO)
 
 chat_recordings = LRU(128)
 
-def search(bot, update, args):
-    """ Search command handler.
-    /search <word>
-    """
-    #if (update.effective_user == None) or (update.effective_user.username != 'philhu'):
-    #    bot.send_message(chat_id=update.message.chat_id, text="この機能は @philhu さんだけが利用できます。I'm only reserved to @philhu at the moment.")
-    #    return
-    bot.send_message(chat_id=update.message.chat_id, text=query_jisho(' '.join(args))[0])
+RECORDING = range(1)
 
-def unknown(bot, update):
-    """ Unknown message handler.
-    For capturing non-command messages in group chats.
-    $keywords$<word>
-    """
-    keywords = ["日语", "日本語", "japanese"]
-    for keyword in keywords:
-        if keyword in update.message.text:
-            search(bot, update, [update.message.text.split(keyword)[1]])
-            return
-
-GENERAL, RECORDING = range(2)
-
-def conv_start(bot, update):
-    """ For conversations: Start command handler.
-    /start
-    """
-    update.message.reply_text("こんにちは。私は辞書ボットです。version=" + version)
-    return GENERAL
-
-def conv_search(bot, update, in_state):
+def conv_search(in_state, query_text, bot, update):
     """ For conversations: Search message handler.
     """
-    logger.info("User %s: %s", update.effective_user.username, update.message.text)
-    message_back, definition = query_jisho(update.message.text)
-    if in_state == GENERAL:
-        update.message.reply_text(message_back)
-    else:
+    if query_text == None:
+        query_text = update.message.text
+    logger.info("User %s: %s", update.effective_user.username, query_text)
+    message_back, definition = query_jisho(query_text)
+    if in_state == RECORDING:
         recording = chat_recordings.get(update.effective_user.username)
         if recording == None:
             update.message.reply_text("Warning: your recording got reset, probably because idle time was too long.")
@@ -66,17 +41,16 @@ def conv_search(bot, update, in_state):
         if definition != None:
             recording.append(definition)
         message_back += '\nRecorded ' + str(len(recording)) + ' items.'
-        update.message.reply_text(message_back)
+    bot.send_message(chat_id=update.message.chat_id,
+                     text=message_back,
+                     parse_mode=telegram.ParseMode.MARKDOWN,
+                     disable_web_page_preview=True)
     return in_state
-
-# some handy bindings of conv_search
-conv_search_general = lambda bot, update: conv_search(bot, update, GENERAL)
-conv_search_recording = lambda bot, update: conv_search(bot, update, RECORDING)
 
 def conv_unrecognized(bot, update):
     logger.info("User %s: %s", update.effective_user.username, update.message.text)
     update.message.reply_text('Unrecognized message')
-    return GENERAL
+    return RECORDING
 
 def conv_record(bot, update):
     logger.info("User %s is now recording", update.effective_user.username)
@@ -91,26 +65,59 @@ def conv_record_stop(bot, update):
     if len(definitions) > 0:
         with output_anki_tsv(definitions) as temp_filename:
             bot.send_document(chat_id=update.message.chat_id, document=open(temp_filename, 'rb'), filename="jisho_"+strftime("%Y%m%d_%H%M", gmtime())+".tsv")
-    return GENERAL
+    return -1  # end the conversation
+
+def start(bot, update):
+    """ Start command handler.
+    /start
+    """
+    update.message.reply_text("こんにちは。私は辞書ボットです。version=" + version)
+
+def search(bot, update, args):
+    """ Search command handler.
+    /search <word>
+    """
+    #if (update.effective_user == None) or (update.effective_user.username != 'philhu'):
+    #    bot.send_message(chat_id=update.message.chat_id, text="この機能は @philhu さんだけが利用できます。I'm only reserved to @philhu at the moment.")
+    #    return
+    conv_search(None,  # no conversation state
+                ' '.join(args),  # query text
+                bot, update)
+
+def unknown(bot, update):
+    """ Unknown message handler.
+    Private chats: queries the message text
+    Other chats (group): needs keywords to trigger search, $keywords$<word>
+    """
+    if update.message.chat.type == 'private':
+        conv_search(None,  # no conversation state
+                    None,  # use message text as query text
+                    bot, update)
+        return
+    keywords = ["日语", "日本語", "japanese"]
+    for keyword in keywords:
+        if keyword in update.message.text:
+            conv_search(None,  # no conversation state
+                        update.message.text.split(keyword)[1],  # query text
+                        bot, update)
+            return
 
 def main():
     updater = Updater(token=token)
 
     dispatcher = updater.dispatcher
 
+    start_handler = CommandHandler('start', start)
+    dispatcher.add_handler(start_handler)
+
     # conversation handler
     conv_handler = ConversationHandler(
-            entry_points=[CommandHandler('start', conv_start),
-                          CommandHandler('record', conv_record),
-                          MessageHandler(Filters.text, conv_search_general)
-                         ],
+            entry_points=[CommandHandler('record', conv_record)],
 
             states={
-                GENERAL: [MessageHandler(Filters.text, conv_search_general),
-                          CommandHandler('record', conv_record)
-                         ],
                 RECORDING: [CommandHandler('record_stop', conv_record_stop),
-                            MessageHandler(Filters.text, conv_search_recording)]
+                            MessageHandler(Filters.text, partial(conv_search, RECORDING, None))
+                           ]
             },
 
             fallbacks=[MessageHandler(Filters.text, conv_unrecognized)]
