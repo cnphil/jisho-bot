@@ -15,7 +15,7 @@ from anki import output_anki_tsv
 version = '0.1.1'
 
 logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                    format='%(asctime)s - %(name)s - %(filename)s - %(lineno)d - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -66,7 +66,7 @@ def conv_search(bot, update, in_state):
         if definition != None:
             recording.append(definition)
         message_back += '\nRecorded ' + str(len(recording)) + ' items.'
-    update.message.reply_text(message_back)
+        update.message.reply_text(message_back)
     return in_state
 
 # some handy bindings of conv_search
