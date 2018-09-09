@@ -78,8 +78,7 @@ def conv_record_stop(bot, update):
     definitions = chat_recordings[update.effective_user.username]
     update.message.reply_text("Recording stopped. " + str(len(definitions)) + " items.\n" + ', '.join(list(map(lambda d: render_word(d), definitions))))
     if len(definitions) > 0:
-        with output_anki_tsv(definitions) as temp_filename:
-            bot.send_document(chat_id=update.message.chat_id, document=open(temp_filename, 'rb'), filename="jisho_"+strftime("%Y%m%d_%H%M", gmtime())+".tsv")
+        bot.send_document(chat_id=update.message.chat_id, document=output_anki_tsv(definitions) , filename="jisho_"+strftime("%Y%m%d_%H%M", gmtime())+".tsv")
     return -1  # end the conversation
 
 def start(bot, update):
