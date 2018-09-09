@@ -26,12 +26,14 @@ def extract_def(definition_data):
 
 def render_def_markdown(definition, query):
     if definition == None:
-        return '見つからない。' + '[📚](' + get_jisho_weblink(query) + ')', None
+        return '見つからない。' + '[📚](' + get_jisho_weblink(query) + ')'
     return '*' + definition['word'] + '* （' + definition['reading'] + '）\n' + definition['english_definitions'] + ': _' + definition['parts_of_speech'] + '_ [📚](' + get_jisho_weblink(query) + ')'
 
 def render_word(definition):
     """ Renders the definition to be Anki's word field
     """
+    if definition == None:
+        return ''
     if definition['word'] == '':
         return definition['reading']
     return definition['word']
@@ -39,11 +41,15 @@ def render_word(definition):
 def render_reading(definition):
     """ Renders the definition to be Anki's reading field
     """
+    if definition == None:
+        return ''
     return definition['reading']
 
 def render_definition(definition):
     """ Renders the definition to be Anki's definition field
     """
+    if definition == None:
+        return ''
     return definition['parts_of_speech'] + ': ' + definition['english_definitions']
 
 def query_jisho(query):

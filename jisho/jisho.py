@@ -5,16 +5,18 @@ from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler
 from telegram.ext import Filters
 from telegram.ext import ConversationHandler
+from telegram.ext import InlineQueryHandler
+from uuid import uuid4
 from lru import LRU
 import logging
 from time import gmtime, strftime
 from functools import partial
 
 from config import token
-from dictionary import query_jisho, render_word
+from dictionary import query_jisho, render_word, render_reading
 from anki import output_anki_tsv
 
-version = '0.1.2'
+version = '0.2.0'
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(filename)s - %(lineno)d - %(levelname)s - %(message)s')
@@ -25,7 +27,7 @@ chat_recordings = LRU(128)
 
 RECORDING = range(1)
 
-def conv_search(in_state, query_text, bot, update):
+def conv_search(in_state, query_text, bot, update, send_message=True):
     """ For conversations: Search message handler.
     """
     if query_text == None:
@@ -41,11 +43,24 @@ def conv_search(in_state, query_text, bot, update):
         if definition != None:
             recording.append(definition)
         message_back += '\nRecorded ' + str(len(recording)) + ' items.'
-    bot.send_message(chat_id=update.message.chat_id,
-                     text=message_back,
-                     parse_mode=telegram.ParseMode.MARKDOWN,
-                     disable_web_page_preview=True)
-    return in_state
+
+    # TODO(philhu): Use our own models.
+    answer=None
+    if definition != None:
+        answer=telegram.InlineQueryResultArticle(
+                input_message_content=telegram.InputTextMessageContent(
+                        message_text=message_back,
+                        parse_mode=telegram.ParseMode.MARKDOWN,
+                        disable_web_page_preview=True),
+                id=uuid4(),
+                title=render_word(definition) + ' (' + render_reading(definition) + ')')
+
+    if send_message:
+        bot.send_message(chat_id=update.message.chat_id,
+                        text=message_back,
+                        parse_mode=telegram.ParseMode.MARKDOWN,
+                        disable_web_page_preview=True)
+    return answer
 
 def conv_unrecognized(bot, update):
     logger.info("User %s: %s", update.effective_user.username, update.message.text)
@@ -84,6 +99,15 @@ def search(bot, update, args):
                 ' '.join(args),  # query text
                 bot, update)
 
+def inlinequery(bot, update):
+    results = []
+    answer = conv_search(None,  # no conversation state
+            update.inline_query.query,  # query text
+            bot, update, send_message=False)
+    if answer != None:
+        results.append(answer)
+    bot.answerInlineQuery(update.inline_query.id, results=results)
+
 def unknown(bot, update):
     """ Unknown message handler.
     Private chats: queries the message text
@@ -102,6 +126,11 @@ def unknown(bot, update):
                         bot, update)
             return
 
+def compose2(f, g):
+    """ Handy function composer
+    """
+    return lambda *a, **kw: f(g(*a, **kw))
+
 def main():
     updater = Updater(token=token)
 
@@ -116,7 +145,9 @@ def main():
 
             states={
                 RECORDING: [CommandHandler('record_stop', conv_record_stop),
-                            MessageHandler(Filters.text, partial(conv_search, RECORDING, None))
+                            MessageHandler(Filters.text,
+                                           compose2(lambda _: RECORDING, partial(conv_search, RECORDING, None))
+                                          )
                            ]
             },
 
@@ -130,6 +161,9 @@ def main():
 
     unknown_handler = MessageHandler(Filters.text, unknown)
     dispatcher.add_handler(unknown_handler)
+
+    inline_query_handler = InlineQueryHandler(inlinequery)
+    dispatcher.add_handler(inline_query_handler)
 
     updater.start_polling()
 
