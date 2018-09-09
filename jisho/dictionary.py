@@ -27,7 +27,7 @@ def extract_def(definition_data):
 def render_def_markdown(definition, query):
     if definition == None:
         return '見つからない。' + '[📚](' + get_jisho_weblink(query) + ')', None
-    return '*' + definition['word'] + '* （' + definition['reading'] + '）\n' + definition['english_definitions'] + ': _' + definition['parts_of_speech'] + '_[📚](' + get_jisho_weblink(query) + ')'
+    return '*' + definition['word'] + '* （' + definition['reading'] + '）\n' + definition['english_definitions'] + ': _' + definition['parts_of_speech'] + '_ [📚](' + get_jisho_weblink(query) + ')'
 
 def render_word(definition):
     """ Renders the definition to be Anki's word field
